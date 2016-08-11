@@ -4,7 +4,7 @@ Neuron::Neuron(int Number_Of_Connections, int Seed)
 {
 	// Random Number Generation. - Seed defined in Neuron Class (Private Variable)
 	std::mt19937_64 Generate(Seed);
-	std::uniform_real_distribution<double> Weight(-1, 1);
+	std::uniform_real_distribution<double> Weight(-0.5, 0.5);
 	std::uniform_real_distribution<double> Bias(0, 1);
 
 	// Resize the weight matrix for the number of connection, plus one additional weight that acts as the bias

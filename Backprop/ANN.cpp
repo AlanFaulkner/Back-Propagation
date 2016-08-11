@@ -132,7 +132,6 @@ void ANN::Train_Network(std::vector<std::vector<double>> Training_Data, double T
 			std::vector<std::vector<double>> Element;
 			Element.push_back(Training_Inputs[Z]);
 			Eigen::MatrixXd Element_Target = Training_Results.row(Z);
-
 			ANN::Calculate_Network_Output(Element); // Calculates output of network using current weights. - if this code work fix this section
 			int A = ANN::Network.size() - 1; // Used to access neuron in reverse
 
@@ -144,7 +143,7 @@ void ANN::Train_Network(std::vector<std::vector<double>> Training_Data, double T
 						ANN::Network[A][j].Weight_Update = ANN::Network[A][j].Input*ANN::Network[A][j].Sigma_error*Training_Rate;
 						ANN::Network[A][j].Weights = ANN::Network[A][j].Weights + ANN::Network[A][j].Weight_Update.transpose() + ANN::Network[A][j].Weight_Update_Old.transpose();
 						ANN::Network[A][j].Weight_Update_Oldest = ANN::Network[A][j].Weight_Update_Old;
-						ANN::Network[A][j].Weight_Update_Old = ANN::Network[A][j].Weight_Update * 0.7; // Momentum
+						ANN::Network[A][j].Weight_Update_Old = ANN::Network[A][j].Weight_Update * 0.8; // Momentum
 					}
 
 					else {
@@ -156,7 +155,7 @@ void ANN::Train_Network(std::vector<std::vector<double>> Training_Data, double T
 						ANN::Network[A][j].Weight_Update = ANN::Network[A][j].Input*ANN::Network[A][j].Sigma_error*Training_Rate;
 						ANN::Network[A][j].Weights = ANN::Network[A][j].Weights + ANN::Network[A][j].Weight_Update.transpose() + ANN::Network[A][j].Weight_Update_Old.transpose();
 						ANN::Network[A][j].Weight_Update_Oldest = ANN::Network[A][j].Weight_Update_Old;
-						ANN::Network[A][j].Weight_Update_Old = ANN::Network[A][j].Weight_Update * 0.7;
+						ANN::Network[A][j].Weight_Update_Old = ANN::Network[A][j].Weight_Update * 0.8;
 					}
 				}
 			}
@@ -164,7 +163,7 @@ void ANN::Train_Network(std::vector<std::vector<double>> Training_Data, double T
 		ANN::Network_Error = ANN::Network_Error / Training_Inputs.size();
 		ANN::Epoch++;
 
-		if (Epoch % 10000 == 0) { std::cout << std::setw(7) << Epoch << " : " << std::setw(10) << Network_Error << std::endl; }
+		if (Epoch % 1000 == 0) { std::cout << std::setw(7) << Epoch << " : " << std::setw(10) << Network_Error << std::endl; }
 	} while (Network_Error >= Target_Error && Epoch <= Max_Iterations);
 
 	std::cout << "\n Training complete! \n \n";
@@ -256,7 +255,7 @@ void ANN::Print_Neuron_Info(int x, int y)
 }
 void ANN::Print_Diagnostics()
 {
-	std::cout << "########################\n# Network Diagnostics #\n########################\n\n";
+	std::cout << "#######################\n# Network Diagnostics #\n#######################\n\n";
 	for (std::vector<Neuron>::size_type i = 0; i < ANN::Network.size(); i++) {
 		if (i != Network.size() - 1) { std::cout << " Hidden Layer: " << i + 1 << "\n----------------\n"; }
 		else { std::cout << " Output Layer\n--------------\n\n"; }
@@ -265,7 +264,7 @@ void ANN::Print_Diagnostics()
 		}
 		std::cout << std::endl;
 	}
-	std::cout << "##############################\n# Network Diagnostics - END #\n##############################\n\n";
+	std::cout << "#############################\n# Network Diagnostics - END #\n#############################\n\n";
 }
 
 // Output Functions
@@ -273,6 +272,7 @@ std::vector<double> ANN::Get_Output_Single_Data_Set(std::vector<double> Input_Da
 {
 	std::vector<double> Output;
 	std::vector<std::vector<double>> Input;
+	//Input_Data.erase(Input_Data.begin()); // Temporary value used to delete first column of data. has moved to main.
 	Input.push_back(Input_Data);
 	ANN::Calculate_Network_Output(Input);
 	for (std::vector<std::vector<Neuron>>::size_type i = 0; i < ANN::Network[ANN::Network.size() - 1].size(); i++) {
@@ -284,15 +284,20 @@ std::vector<double> ANN::Get_Output_Single_Data_Set(std::vector<double> Input_Da
 
 std::vector<std::vector<double>> ANN::Get_Output_Multi_Data_Set(std::vector<std::vector<double>> Input_Data)
 {
-	ANN::Calculate_Network_Output(Input_Data);
 	std::vector<std::vector<double>> Output;
+	std::vector<std::vector<double>> Element;
+	std::vector<std::vector<double>> Result;
 
 	for (std::vector<std::vector<double>>::size_type i = 0; i < Input_Data.size(); i++) {
-		std::vector<double> Output_row;
+		std::vector<double> Row = Input_Data[i];
+		Element.push_back(Row);
+
+		Row.clear();
+		ANN::Calculate_Network_Output(Element);
 		for (std::vector<std::vector<Neuron>>::size_type j = 0; j < ANN::Network[ANN::Network.size() - 1].size(); j++) {
-			Output_row.push_back(ANN::Network[ANN::Network.size() - 1][j].Output(i, 0));
+			Row.push_back(ANN::Network[ANN::Network.size() - 1][j].Output(0, 0));
 		}
-		Output.push_back(Output_row);
+		Output.push_back(Row);
 	}
 
 	return Output;
@@ -321,50 +326,6 @@ std::vector<std::vector<double>> ANN::Load_Training_Data(std::string Filename)
 	Input.close();
 
 	return Training_Data;
-}
-
-std::vector<std::vector<double>> ANN::Calculate_Batch_Output(std::vector<std::vector<double>> Input_Data)
-{
-	// Standardized format of data entry: One set of Inputs is equal to one row
-	// Covert vector into eigen matrix - currently this is for convergence might resort to just using std::vectors in future
-
-	// Build input eigen matrix
-	Eigen::MatrixXd Input(Input_Data.size(), Input_Data[0].size() + 1);										// This allows for input data to hold more than one set of inputs
-	for (std::vector<double>::size_type i = 0; i < Input_Data.size(); i++) {
-		for (std::vector<double>::size_type j = 0; j < Input_Data[0].size(); j++) {
-			Input(i, j) = Input_Data[i][j];
-		}
-		Input(i, Input_Data[0].size()) = 1;																	// This is the input for the neuron bias. It is always set to 1. Value allows for easy matrix multiplication
-	}
-
-	for (std::vector<std::vector<Neuron>>::size_type i = 0; i < Network.size(); i++) {
-		ANN::Layer.resize(Input_Data.size(), ANN::Network[i].size());										// Stores output of each neuron in given layer in a row. Each row represents one set of inputs.
-		for (std::vector<Neuron>::size_type j = 0; j < Network[i].size(); j++) {
-			// Calculate the output of neuron.
-			Network[i][j].Input = Input;																	// Stores a copy of inputs in neuron - useful for error checking
-			Network[i][j].Output = Network[i][j].Input*Network[i][j].Weights;								// Calculate output of neuron
-			for (int y = 0; y < Network[i][j].Output.rows(); y++) {
-				for (int x = 0; x < Network[i][j].Output.cols(); x++) {
-					Network[i][j].Output(y, x) = Activation_Functions(Network[i][j].Output(y, x), false);	// Apply activation function
-				}
-			}
-
-			// Store output of neuron in Layer matrix to be used as input for next layer
-			for (int y = 0; y < ANN::Layer.rows(); y++) {
-				ANN::Layer(y, j) = Network[i][j].Output(y, 0);
-			}
-		}
-
-		// Update input data for next layer
-		Input.resize(Layer.rows(), Layer.cols());
-		Input = ANN::Layer;
-
-		// Add the value of 1 to each row to take into account neuron bias needs an input value of one.
-		Input.conservativeResize(Input.rows(), Input.cols() + 1);											// Resize matrix without data loss
-		Eigen::VectorXd Neuron_Bias_Input = Eigen::VectorXd::Constant(Input.rows(), 1);						// Create a temporary vector of size = training set size and initialized to 1
-		Input.col(Input.cols() - 1) = Neuron_Bias_Input;													// Add vector to input matrix
-	}
-	return std::vector<std::vector<double>>();
 }
 
 // Private functions
